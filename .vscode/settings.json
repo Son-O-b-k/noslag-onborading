@@ -1,0 +1,9 @@
+{
+  "editor.defaultFormatter": "esbenp.prettier-vscode",
+  "editor.formatOnSave": true,
+  "editor.fontSize": 16,
+  "workbench.colorCustomizations": {},
+  "[prisma]": {
+    "editor.defaultFormatter": "Prisma.prisma"
+  }
+}

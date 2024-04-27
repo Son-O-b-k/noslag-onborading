@@ -1,0 +1,57 @@
+name: Deploy to DigitalOcean
+
+on:
+  push:
+    branches:
+      - development
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v2
+
+      - name: Deploy to DigitalOcean
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            cd /home/projects/github/backend
+            git pull origin development
+            export NVM_DIR=~/.nvm
+            source ~/.nvm/nvm.sh
+            cp -Rf * ../backend-test
+            cd /home/projects/github/backend-test
+            cp -Rf ../ecosystem.config.js ./
+            rm -Rf node_modules/prisma
+            npm install
+            npx prisma generate
+            npm run build
+            echo "RELOADING TEST DEPLOYMENT"
+            pm2 restart noslag-test-backend
+            exit_status_1=$?
+            if [ $exit_status_1 -ne 0 ]; then
+                #NOTIFY DEVELOPER
+                echo "TEST DEPLOYMENT ERROR"
+                pm2 stop noslag-test-backend
+                pm2 logs noslag-backend --lines 10  # Display the last 10 lines of logs
+                exit $exit_status_1
+            else
+                #NO ERROR ON TEST SERVER
+                echo "TEST DEPLOYMENT SUCCESS"
+                pm2 stop noslag-test-backend
+                echo "DEPLOYING LIVE SERVER"
+                cd /home/projects/github/backend
+                rm -Rf node_modules/prisma
+                npm install
+                npx prisma generate
+                npm run build
+                pm2 reload noslag-backend
+                exit_status_2=$?
+                echo "LIVE SERVER STARTED!!!"
+                exit $exit_status_2
+            fi
